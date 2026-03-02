@@ -1280,7 +1280,7 @@ class _DayPreviewSection extends StatelessWidget {
       width: double.infinity,
       child: Card(
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
