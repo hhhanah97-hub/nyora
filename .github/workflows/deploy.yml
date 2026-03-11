@@ -17,7 +17,7 @@ jobs:
           channel: 'stable'
 
       - run: flutter pub get
-      - run: flutter build web --release
+      - run: flutter build web --release --base-href /nyora/
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
