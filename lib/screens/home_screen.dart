@@ -212,13 +212,13 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             ListTile(
-              leading: Icon(Icons.attach_money),
-              title: Text("Finance"),
+              leading: const Icon(Icons.attach_money),
+              title: const Text("Finance"),
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => FinanceOverviewScreen(store: store),
+                    builder: (_) => FinanceOverviewScreen(store: widget.store),
                   ),
                 );
               },

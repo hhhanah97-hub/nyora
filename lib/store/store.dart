@@ -3,6 +3,7 @@ import '../models/event.dart';
 import 'dart:convert';
 import '../models/event_category.dart';
 import '../models/finance.dart';
+import '../screens/finance_overview_screen.dart';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 

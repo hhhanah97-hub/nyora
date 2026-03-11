@@ -28,31 +28,37 @@ class FinanceOverviewScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text("Finance přehled")),
       body: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               "Příjmy: ${income.toStringAsFixed(0)} Kč",
-              style: TextStyle(fontSize: 18),
+              style: const TextStyle(fontSize: 18),
             ),
 
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-            Text("Výdaje", style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text("Výdaje", style: TextStyle(fontWeight: FontWeight.bold)),
 
-            ...expenses.entries.map((e) {
-              return ListTile(
-                title: Text(e.key),
-                trailing: Text("${e.value.toStringAsFixed(0)} Kč"),
-              );
-            }),
+            const SizedBox(height: 10),
 
-            Spacer(),
+            Expanded(
+              child: ListView(
+                children: expenses.entries.map((e) {
+                  return ListTile(
+                    title: Text(e.key),
+                    trailing: Text("${e.value.toStringAsFixed(0)} Kč"),
+                  );
+                }).toList(),
+              ),
+            ),
+
+            const Divider(),
 
             Text(
               "Zůstatek: ${store.getBalance().toStringAsFixed(0)} Kč",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
           ],
         ),
