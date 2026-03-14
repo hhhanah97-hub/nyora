@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../store/store.dart';
 import '../theme/app_theme.dart';
+import '../screens/add_event_screen.dart';
+import '../screens/add_task_screen.dart';
+import '../screens/add_finance_screen.dart';
 
 const List<String> monthName = [
   "Leden",
@@ -97,7 +100,7 @@ class CalendarCard extends StatelessWidget {
               ],
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(height: 2),
 
             /// GRID
             GridView.builder(
@@ -106,7 +109,7 @@ class CalendarCard extends StatelessWidget {
               itemCount: cellCount,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 7,
-                mainAxisExtent: 50,
+                mainAxisExtent: 40,
               ),
               itemBuilder: (context, index) {
                 if (index < leadingEmpty) {
@@ -134,6 +137,10 @@ class CalendarCard extends StatelessWidget {
 
                 return GestureDetector(
                   onTap: () => onDayTap(date),
+                  onLongPress: () {
+                    onDayTap(date);
+                    _openAddMenu(context, store, date);
+                  },
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: isSelected
@@ -159,7 +166,7 @@ class CalendarCard extends StatelessWidget {
                           ),
                         ),
 
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
 
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -171,8 +178,8 @@ class CalendarCard extends StatelessWidget {
                                   margin: const EdgeInsets.symmetric(
                                     horizontal: 1,
                                   ),
-                                  width: 6,
-                                  height: 6,
+                                  width: 2,
+                                  height: 2,
                                   decoration: BoxDecoration(
                                     color: store.getCategoryColor(e.category),
                                     shape: BoxShape.circle,
@@ -192,4 +199,62 @@ class CalendarCard extends StatelessWidget {
       ),
     );
   }
+}
+
+void _openAddMenu(BuildContext context, Store store, DateTime date) {
+  showModalBottomSheet(
+    context: context,
+    builder: (context) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.event),
+            title: const Text("Událost"),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      AddEventScreen(store: store, initialDate: date),
+                ),
+              );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.check_circle_outline),
+            title: const Text("Úkol"),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AddTaskScreen(store: store, date: date),
+                ),
+              );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.attach_money),
+            title: const Text("Finance"),
+            onTap: () {
+              Navigator.pop(context);
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AddFinanceScreen(store: store, date: date),
+                ),
+              );
+            },
+          ),
+        ],
+      );
+    },
+  );
 }

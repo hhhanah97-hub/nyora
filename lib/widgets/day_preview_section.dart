@@ -3,6 +3,8 @@ import '../store/store.dart';
 import '../screens/add_event_screen.dart';
 import '../models/event.dart';
 import '../screens/add_finance_screen.dart';
+import '../screens/add_task_screen.dart';
+import '../models/task.dart';
 
 class DayPreviewSection extends StatelessWidget {
   final Store store;
@@ -24,6 +26,7 @@ class DayPreviewSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final eventsForDay = store.eventsForDay(selectedDay);
     final finances = store.financesForDay(selectedDay);
+    final tasks = store.tasksForDay(selectedDay);
     double expensesToday = 0;
     for (var f in finances) {
       if (f.amount < 0) {
@@ -45,7 +48,10 @@ class DayPreviewSection extends StatelessWidget {
               children: [
                 Text(
                   "Denní přehled (${selectedDay.day}.${selectedDay.month}.${selectedDay.year})",
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
 
                 IconButton(
@@ -80,6 +86,15 @@ class DayPreviewSection extends StatelessWidget {
                               title: Text("Úkol"),
                               onTap: () {
                                 Navigator.pop(context);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => AddTaskScreen(
+                                      store: store,
+                                      date: selectedDay,
+                                    ),
+                                  ),
+                                );
                               },
                             ),
 
@@ -108,12 +123,26 @@ class DayPreviewSection extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 10),
+            const Divider(),
+            const SizedBox(height: 10),
 
             const SizedBox(height: 10),
 
             /// CONTENT
+            /// UDÁLOSTI
+            Row(
+              children: const [
+                Icon(Icons.event, size: 18),
+                SizedBox(width: 6),
+                Text("Události", style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+
+            const SizedBox(height: 6),
+
             if (eventsForDay.isEmpty)
-              const Text("Žádné záznamy")
+              const Text("Žádné události")
             else
               Column(
                 children: eventsForDay.map((e) {
@@ -122,8 +151,6 @@ class DayPreviewSection extends StatelessWidget {
                       _eventMenu(context, e);
                     },
                     child: ListTile(
-                      leading: const Icon(Icons.event),
-
                       title: Row(
                         children: [
                           Text(
@@ -152,14 +179,60 @@ class DayPreviewSection extends StatelessWidget {
                 }).toList(),
               ),
             const SizedBox(height: 20),
+            const Divider(),
+            const SizedBox(height: 10),
+
+            /// ÚKOLY
+            Row(
+              children: const [
+                Icon(Icons.check_circle_outline, size: 18),
+                SizedBox(width: 6),
+                Text("Úkoly", style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+
+            const SizedBox(height: 6),
+
+            if (tasks.isEmpty)
+              const Text("Žádné úkoly")
+            else
+              Column(
+                children: tasks.map((task) {
+                  final hour = task.timeMinutes ~/ 60;
+                  final minute = task.timeMinutes % 60;
+
+                  final timeText = task.timeMinutes > 0
+                      ? "${fmt2(hour)}:${fmt2(minute)} "
+                      : "";
+
+                  return GestureDetector(
+                    onLongPress: () {
+                      _taskMenu(context, task);
+                    },
+                    child: CheckboxListTile(
+                      value: task.done,
+                      title: Text("$timeText${task.text}"),
+                      onChanged: (value) {
+                        task.done = value ?? false;
+                        store.save();
+                      },
+                    ),
+                  );
+                }).toList(),
+              ),
+
+            const SizedBox(height: 10),
 
             const Divider(),
 
             const SizedBox(height: 10),
 
-            const Text(
-              "Finance",
-              style: TextStyle(fontWeight: FontWeight.bold),
+            Row(
+              children: const [
+                Icon(Icons.attach_money, size: 18),
+                SizedBox(width: 6),
+                Text("Finance", style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
             ),
 
             const SizedBox(height: 6),
@@ -212,6 +285,49 @@ class DayPreviewSection extends StatelessWidget {
       context,
       MaterialPageRoute(
         builder: (_) => AddEventScreen(store: store, initialDate: e.date),
+      ),
+    );
+  }
+
+  void _taskMenu(BuildContext context, Task task) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.edit),
+                title: const Text("Upravit"),
+                onTap: () {
+                  Navigator.pop(context);
+                  _editTask(context, task);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete),
+                title: const Text("Smazat"),
+                onTap: () {
+                  store.tasks.remove(task);
+                  store.save();
+                  store.notifyListeners();
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _editTask(BuildContext context, Task task) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            AddTaskScreen(store: store, date: task.date, existingTask: task),
       ),
     );
   }

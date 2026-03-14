@@ -3,27 +3,51 @@ import '../models/event.dart';
 import 'dart:convert';
 import '../models/event_category.dart';
 import '../models/finance.dart';
-import '../screens/finance_overview_screen.dart';
+import '../models/task.dart';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 
 class Store extends ChangeNotifier {
   List<Event> events = [];
   List<Finance> finances = [];
+  List<Task> tasks = [];
+  List<Task> tasksForDay(DateTime day) {
+    return tasks.where((t) {
+      return t.date.year == day.year &&
+          t.date.month == day.month &&
+          t.date.day == day.day;
+    }).toList();
+  }
+
+  void deleteTask(Task task) {
+    tasks.remove(task);
+    save();
+    notifyListeners();
+  }
+
+  void addTask({
+    required DateTime date,
+    required String text,
+    required int timeMinutes,
+  }) {
+    tasks.add(
+      Task(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        date: date,
+        text: text,
+        done: false,
+        repeatWeekday: 0,
+        timeMinutes: timeMinutes,
+      ),
+    );
+    save();
+    notifyListeners();
+  }
 
   List<Category> categories = [
     Category(name: "Osobní", color: Colors.green),
     Category(name: "Práce", color: Colors.blue),
   ];
-  Color getCategoryColor(String categoryName) {
-    for (var c in categories) {
-      if (c.name == categoryName) {
-        return c.color;
-      }
-    }
-
-    return Colors.grey;
-  }
 
   void saveCategories() {
     final jsonList = categories.map((c) => c.toJson()).toList();
@@ -49,6 +73,72 @@ class Store extends ChangeNotifier {
     }
   }
 
+  Color getCategoryColor(String categoryName) {
+    for (var c in categories) {
+      if (c.name == categoryName) {
+        return c.color;
+      }
+    }
+
+    return Colors.grey;
+  }
+
+  void save() {
+    final eventsJson = events.map((e) => e.toJson()).toList();
+    final financesJson = finances.map((f) => f.toJson()).toList();
+    final tasksJson = tasks.map((t) => t.toJson()).toList();
+
+    html.window.localStorage['events'] = jsonEncode(eventsJson);
+    html.window.localStorage['finances'] = jsonEncode(financesJson);
+    html.window.localStorage['tasks'] = jsonEncode(tasksJson);
+
+    notifyListeners();
+  }
+
+  Future<void> load() async {
+    try {
+      final eventsText = html.window.localStorage['events'];
+      final financesText = html.window.localStorage['finances'];
+      final tasksText = html.window.localStorage['tasks'];
+
+      events.clear();
+      finances.clear();
+      tasks.clear();
+
+      if (eventsText != null) {
+        final decoded = jsonDecode(eventsText);
+
+        for (var item in decoded) {
+          events.add(Event.fromJson(Map<String, dynamic>.from(item)));
+        }
+      }
+
+      if (financesText != null) {
+        final decoded = jsonDecode(financesText);
+
+        for (var item in decoded) {
+          finances.add(Finance.fromJson(Map<String, dynamic>.from(item)));
+        }
+      }
+
+      if (tasksText != null) {
+        final decoded = jsonDecode(tasksText);
+
+        for (var item in decoded) {
+          tasks.add(Task.fromJson(Map<String, dynamic>.from(item)));
+        }
+      }
+
+      notifyListeners();
+    } catch (e) {
+      print("LOAD ERROR: $e");
+
+      events.clear();
+      finances.clear();
+      tasks.clear();
+    }
+  }
+
   void addEvent({
     required DateTime date,
     required int timeMinutes,
@@ -67,33 +157,6 @@ class Store extends ChangeNotifier {
     );
 
     save();
-  }
-
-  void save() {
-    final jsonList = events.map((e) => e.toJson()).toList();
-
-    html.window.localStorage['events'] = jsonEncode(jsonList);
-    notifyListeners();
-  }
-
-  Future<void> load() async {
-    try {
-      final text = html.window.localStorage['events'];
-
-      if (text == null) return;
-
-      final decoded = jsonDecode(text);
-
-      events.clear();
-
-      for (var item in decoded) {
-        events.add(Event.fromJson(Map<String, dynamic>.from(item)));
-      }
-    } catch (e) {
-      print("LOAD ERROR: $e");
-
-      events.clear();
-    }
   }
 
   void addFinance({
