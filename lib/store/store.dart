@@ -4,6 +4,8 @@ import 'dart:convert';
 import '../models/event_category.dart';
 import '../models/finance.dart';
 import '../models/task.dart';
+import '../models/tracker.dart';
+import '../models/tracker_category.dart';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 
@@ -11,6 +13,12 @@ class Store extends ChangeNotifier {
   List<Event> events = [];
   List<Finance> finances = [];
   List<Task> tasks = [];
+
+  List<Tracker> trackers = [];
+  List<TrackerCategory> trackerCategories = [];
+
+  /// TASKS
+
   List<Task> tasksForDay(DateTime day) {
     return tasks.where((t) {
       return t.date.year == day.year &&
@@ -40,9 +48,12 @@ class Store extends ChangeNotifier {
         timeMinutes: timeMinutes,
       ),
     );
+
     save();
     notifyListeners();
   }
+
+  /// EVENT CATEGORIES
 
   List<Category> categories = [
     Category(name: "Osobní", color: Colors.green),
@@ -51,7 +62,6 @@ class Store extends ChangeNotifier {
 
   void saveCategories() {
     final jsonList = categories.map((c) => c.toJson()).toList();
-
     html.window.localStorage['categories'] = jsonEncode(jsonList);
   }
 
@@ -79,9 +89,10 @@ class Store extends ChangeNotifier {
         return c.color;
       }
     }
-
     return Colors.grey;
   }
+
+  /// SAVE
 
   void save() {
     final eventsJson = events.map((e) => e.toJson()).toList();
@@ -94,6 +105,8 @@ class Store extends ChangeNotifier {
 
     notifyListeners();
   }
+
+  /// LOAD
 
   Future<void> load() async {
     try {
@@ -139,6 +152,8 @@ class Store extends ChangeNotifier {
     }
   }
 
+  /// EVENTS
+
   void addEvent({
     required DateTime date,
     required int timeMinutes,
@@ -159,6 +174,8 @@ class Store extends ChangeNotifier {
     save();
   }
 
+  /// FINANCE
+
   void addFinance({
     required DateTime date,
     required String text,
@@ -168,6 +185,8 @@ class Store extends ChangeNotifier {
 
     save();
   }
+
+  /// EXPORT
 
   String exportToJson() {
     final jsonList = events.map((e) => e.toJson()).toList();
@@ -188,6 +207,8 @@ class Store extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// BALANCE
+
   double getBalance() {
     double total = 0;
 
@@ -197,6 +218,8 @@ class Store extends ChangeNotifier {
 
     return total;
   }
+
+  /// EVENTS FOR DAY
 
   List<Event> eventsForDay(DateTime day) {
     final result = <Event>[];
@@ -242,11 +265,213 @@ class Store extends ChangeNotifier {
     return result;
   }
 
+  /// FINANCE FOR DAY
+
   List<Finance> financesForDay(DateTime day) {
     return finances.where((f) {
       return f.date.year == day.year &&
           f.date.month == day.month &&
           f.date.day == day.day;
     }).toList();
+  }
+
+  /// TRACKERS
+
+  void addTracker({required DateTime date, required String name}) {
+    trackers.add(
+      Tracker(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        name: name,
+        date: date,
+        done: false,
+      ),
+    );
+
+    save();
+    notifyListeners();
+  }
+
+  List<Tracker> trackersForDay(DateTime day) {
+    final result = <Tracker>[];
+
+    /// existující trackery (už odškrtnuté / uložené)
+    for (var t in trackers) {
+      if (t.date.year == day.year &&
+          t.date.month == day.month &&
+          t.date.day == day.day) {
+        result.add(t);
+      }
+    }
+
+    /// habit trackery podle kategorií
+    for (var category in trackerCategories) {
+      if (category.type != "habit") continue;
+
+      if (!category.weekdays.contains(day.weekday)) continue;
+
+      final exists = result.any((t) => t.name == category.name);
+
+      if (!exists) {
+        result.add(
+          Tracker(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            name: category.name,
+            date: day,
+            done: false,
+          ),
+        );
+      }
+    }
+
+    return result;
+  }
+
+  List<TrackerCategory> habitsForDay(DateTime day) {
+    return trackerCategories.where((c) {
+      if (c.type != "habit") return false;
+
+      // pokud nejsou nastaveny dny -> každý den
+      if (c.weekdays.isEmpty) return true;
+
+      return c.weekdays.contains(day.weekday);
+    }).toList();
+  }
+
+  /// TRACKER CATEGORIES
+
+  void addTrackerCategory(String name, String type, List<int> weekdays) {
+    trackerCategories.add(
+      TrackerCategory(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: name,
+        type: type,
+        weekdays: weekdays,
+      ),
+    );
+
+    notifyListeners();
+  }
+
+  List<String> trackerTypes = ["habit", "cycle"];
+  void addTrackerType(String type) {
+    trackerTypes.add(type);
+    notifyListeners();
+  }
+
+  void removeTrackerType(String type) {
+    trackerTypes.remove(type);
+    notifyListeners();
+  }
+
+  void toggleHabit(String name, DateTime date, bool done) {
+    trackers.removeWhere(
+      (t) =>
+          t.name == name &&
+          t.date.year == date.year &&
+          t.date.month == date.month &&
+          t.date.day == date.day,
+    );
+
+    if (done) {
+      trackers.add(
+        Tracker(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          name: name,
+          date: date,
+          done: true,
+        ),
+      );
+    }
+
+    save();
+  }
+
+  void addPeriodDay(DateTime date) {
+    trackers.add(
+      Tracker(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: "Menstruace",
+        date: date,
+        done: true,
+      ),
+    );
+
+    save();
+    notifyListeners();
+  }
+
+  DateTime? getLastPeriodStart() {
+    final periodDays = trackers.where((t) => t.name == "Menstruace").toList();
+
+    if (periodDays.isEmpty) return null;
+
+    periodDays.sort((a, b) => b.date.compareTo(a.date));
+
+    return periodDays.first.date;
+  }
+
+  DateTime? getOvulationDay() {
+    final start = getLastPeriodStart();
+
+    if (start == null) return null;
+
+    return start.add(const Duration(days: 14));
+  }
+
+  bool isFertileDay(DateTime day) {
+    final ovulation = getOvulationDay();
+
+    if (ovulation == null) return false;
+
+    final fertileStart = ovulation.subtract(const Duration(days: 3));
+    final fertileEnd = ovulation.add(const Duration(days: 1));
+
+    return !day.isBefore(fertileStart) && !day.isAfter(fertileEnd);
+  }
+
+  DateTime? getNextPeriod() {
+    final start = getLastPeriodStart();
+
+    if (start == null) return null;
+
+    return start.add(const Duration(days: 28));
+  }
+
+  bool isPeriodDay(DateTime day) {
+    final start = getLastPeriodStart();
+
+    if (start == null) return false;
+
+    final diff = day.difference(start).inDays;
+
+    if (diff < 0) return false;
+
+    final cycleDay = diff % 28;
+
+    return cycleDay >= 0 && cycleDay <= 4;
+  }
+
+  int getHabitStreak(String habitName) {
+    final habitTrackers = trackers
+        .where((t) => t.name == habitName && t.done)
+        .toList();
+
+    habitTrackers.sort((a, b) => b.date.compareTo(a.date));
+
+    int streak = 0;
+    DateTime day = DateTime.now();
+
+    for (var t in habitTrackers) {
+      if (t.date.year == day.year &&
+          t.date.month == day.month &&
+          t.date.day == day.day) {
+        streak++;
+        day = day.subtract(const Duration(days: 1));
+      } else {
+        break;
+      }
+    }
+
+    return streak;
   }
 }

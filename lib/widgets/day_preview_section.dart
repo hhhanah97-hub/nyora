@@ -5,6 +5,7 @@ import '../models/event.dart';
 import '../screens/add_finance_screen.dart';
 import '../screens/add_task_screen.dart';
 import '../models/task.dart';
+import '../models/tracker.dart';
 
 class DayPreviewSection extends StatelessWidget {
   final Store store;
@@ -27,6 +28,8 @@ class DayPreviewSection extends StatelessWidget {
     final eventsForDay = store.eventsForDay(selectedDay);
     final finances = store.financesForDay(selectedDay);
     final tasks = store.tasksForDay(selectedDay);
+    final habits = store.habitsForDay(selectedDay);
+
     double expensesToday = 0;
     for (var f in finances) {
       if (f.amount < 0) {
@@ -64,11 +67,10 @@ class DayPreviewSection extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             ListTile(
-                              leading: Icon(Icons.event),
-                              title: Text("Událost"),
+                              leading: const Icon(Icons.event),
+                              title: const Text("Událost"),
                               onTap: () {
                                 Navigator.pop(context);
-
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -82,8 +84,8 @@ class DayPreviewSection extends StatelessWidget {
                             ),
 
                             ListTile(
-                              leading: Icon(Icons.task),
-                              title: Text("Úkol"),
+                              leading: const Icon(Icons.task),
+                              title: const Text("Úkol"),
                               onTap: () {
                                 Navigator.pop(context);
                                 Navigator.push(
@@ -99,11 +101,10 @@ class DayPreviewSection extends StatelessWidget {
                             ),
 
                             ListTile(
-                              leading: Icon(Icons.attach_money),
-                              title: Text("Finance"),
+                              leading: const Icon(Icons.attach_money),
+                              title: const Text("Finance"),
                               onTap: () {
                                 Navigator.pop(context);
-
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -115,6 +116,17 @@ class DayPreviewSection extends StatelessWidget {
                                 );
                               },
                             ),
+                            ListTile(
+                              leading: const Icon(Icons.track_changes),
+                              title: const Text("Tracker"),
+                              onTap: () {
+                                Navigator.pop(context);
+                                store.addTracker(
+                                  date: selectedDay,
+                                  name: "Nový tracker",
+                                );
+                              },
+                            ),
                           ],
                         );
                       },
@@ -123,13 +135,11 @@ class DayPreviewSection extends StatelessWidget {
                 ),
               ],
             ),
+
             const SizedBox(height: 10),
             const Divider(),
             const SizedBox(height: 10),
 
-            const SizedBox(height: 10),
-
-            /// CONTENT
             /// UDÁLOSTI
             Row(
               children: const [
@@ -178,6 +188,7 @@ class DayPreviewSection extends StatelessWidget {
                   );
                 }).toList(),
               ),
+
             const SizedBox(height: 20),
             const Divider(),
             const SizedBox(height: 10),
@@ -221,12 +232,11 @@ class DayPreviewSection extends StatelessWidget {
                 }).toList(),
               ),
 
-            const SizedBox(height: 10),
-
+            const SizedBox(height: 20),
             const Divider(),
-
             const SizedBox(height: 10),
 
+            /// FINANCE
             Row(
               children: const [
                 Icon(Icons.attach_money, size: 18),
@@ -238,8 +248,85 @@ class DayPreviewSection extends StatelessWidget {
             const SizedBox(height: 6),
 
             Text("Výdaje dnes: ${expensesToday.toStringAsFixed(0)} Kč"),
-
             Text("Zůstatek: ${store.getBalance().toStringAsFixed(0)} Kč"),
+
+            const SizedBox(height: 20),
+            const Divider(),
+            const SizedBox(height: 10),
+
+            /// TRACKER
+            Row(
+              children: const [
+                Icon(Icons.track_changes, size: 18),
+                SizedBox(width: 6),
+                Text("Tracker", style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+
+            const SizedBox(height: 6),
+
+            if (habits.isEmpty)
+              const Text("Žádné trackery")
+            else
+              Column(
+                children: habits.map((habit) {
+                  final done = store.trackers.any(
+                    (x) =>
+                        x.name == habit.name &&
+                        x.date.year == selectedDay.year &&
+                        x.date.month == selectedDay.month &&
+                        x.date.day == selectedDay.day,
+                  );
+
+                  final streak = store.getHabitStreak(habit.name);
+
+                  return CheckboxListTile(
+                    value: done,
+                    title: Text(habit.name),
+                    secondary: Text("🔥 $streak"),
+                    onChanged: (value) {
+                      store.toggleHabit(
+                        habit.name,
+                        selectedDay,
+                        value ?? false,
+                      );
+                    },
+                  );
+                }).toList(),
+              ),
+
+            /// cycle tracker informace
+            Builder(
+              builder: (_) {
+                final ovulation = store.getOvulationDay();
+                final nextPeriod = store.getNextPeriod();
+
+                final widgets = <Widget>[];
+
+                if (store.isFertileDay(selectedDay)) {
+                  widgets.add(const Text("🌸 Plodné dny"));
+                }
+
+                if (ovulation != null &&
+                    ovulation.year == selectedDay.year &&
+                    ovulation.month == selectedDay.month &&
+                    ovulation.day == selectedDay.day) {
+                  widgets.add(const Text("🥚 Ovulace"));
+                }
+
+                if (nextPeriod != null &&
+                    nextPeriod.year == selectedDay.year &&
+                    nextPeriod.month == selectedDay.month &&
+                    nextPeriod.day == selectedDay.day) {
+                  widgets.add(const Text("🩸 Očekávaná menstruace"));
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: widgets,
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -262,14 +349,12 @@ class DayPreviewSection extends StatelessWidget {
                   _editEvent(context, e);
                 },
               ),
-
               ListTile(
                 leading: const Icon(Icons.delete),
                 title: const Text("Smazat"),
                 onTap: () {
                   store.events.remove(e);
                   store.save();
-
                   Navigator.pop(context);
                 },
               ),
@@ -311,7 +396,6 @@ class DayPreviewSection extends StatelessWidget {
                 onTap: () {
                   store.tasks.remove(task);
                   store.save();
-                  store.notifyListeners();
                   Navigator.pop(context);
                 },
               ),

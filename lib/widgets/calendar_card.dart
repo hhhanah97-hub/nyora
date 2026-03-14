@@ -40,9 +40,6 @@ class CalendarCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ignore: unused_local_variable
-    final cs = Theme.of(context).colorScheme;
-
     final first = DateTime(month.year, month.month, 1);
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
 
@@ -60,7 +57,6 @@ class CalendarCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            /// HEADER
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -68,7 +64,6 @@ class CalendarCard extends StatelessWidget {
                   icon: const Icon(Icons.chevron_left),
                   onPressed: () => onMonthChange?.call(-1),
                 ),
-
                 Text(
                   "${monthName[month.month - 1]} ${month.year}",
                   style: const TextStyle(
@@ -76,7 +71,6 @@ class CalendarCard extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-
                 IconButton(
                   icon: const Icon(Icons.chevron_right),
                   onPressed: () => onMonthChange?.call(1),
@@ -86,7 +80,6 @@ class CalendarCard extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            /// WEEKDAY HEADER
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -102,7 +95,6 @@ class CalendarCard extends StatelessWidget {
 
             const SizedBox(height: 2),
 
-            /// GRID
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -135,6 +127,25 @@ class CalendarCard extends StatelessWidget {
                     date.month == selectedDay.month &&
                     date.day == selectedDay.day;
 
+                final events = store.eventsForDay(date);
+
+                final ovulation = store.getOvulationDay();
+                final nextPeriod = store.getNextPeriod();
+
+                final isPeriod = store.isPeriodDay(date);
+
+                final isOvulation =
+                    ovulation != null &&
+                    ovulation.year == date.year &&
+                    ovulation.month == date.month &&
+                    ovulation.day == date.day;
+
+                final isNextPeriod =
+                    nextPeriod != null &&
+                    nextPeriod.year == date.year &&
+                    nextPeriod.month == date.month &&
+                    nextPeriod.day == date.day;
+
                 return GestureDetector(
                   onTap: () => onDayTap(date),
                   onLongPress: () {
@@ -150,36 +161,90 @@ class CalendarCard extends StatelessWidget {
                           )
                         : isToday
                         ? BoxDecoration(
-                            // ignore: deprecated_member_use
-                            color: Colors.blue.withOpacity(0.15),
+                            color: Colors.blue.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(8),
                           )
                         : null,
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          "${date.day}",
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            color: isSelected ? Colors.white : null,
-                          ),
+                        Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Text(
+                              "${date.day}",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: isSelected ? Colors.white : null,
+                              ),
+                            ),
+
+                            if (isPeriod)
+                              Positioned(
+                                bottom: -2,
+                                left: 0,
+                                right: 0,
+                                child: Container(height: 2, color: Colors.red),
+                              ),
+
+                            if (isOvulation)
+                              Positioned(
+                                bottom: -2,
+                                left: 0,
+                                right: 0,
+                                child: Row(
+                                  children: List.generate(
+                                    6,
+                                    (_) => Expanded(
+                                      child: Container(
+                                        height: 2,
+                                        margin: const EdgeInsets.symmetric(
+                                          horizontal: 1,
+                                        ),
+                                        color: Colors.pink,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                            if (isNextPeriod)
+                              Positioned(
+                                bottom: -2,
+                                left: 0,
+                                right: 0,
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: List.generate(
+                                    6,
+                                    (_) => Container(
+                                      width: 3,
+                                      height: 3,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
 
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 4),
 
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: store
-                              .eventsForDay(date)
+                          children: events
                               .take(3)
                               .map(
                                 (e) => Container(
                                   margin: const EdgeInsets.symmetric(
                                     horizontal: 1,
                                   ),
-                                  width: 2,
-                                  height: 2,
+                                  width: 3,
+                                  height: 3,
                                   decoration: BoxDecoration(
                                     color: store.getCategoryColor(e.category),
                                     shape: BoxShape.circle,
@@ -213,7 +278,6 @@ void _openAddMenu(BuildContext context, Store store, DateTime date) {
             title: const Text("Událost"),
             onTap: () {
               Navigator.pop(context);
-
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -229,7 +293,6 @@ void _openAddMenu(BuildContext context, Store store, DateTime date) {
             title: const Text("Úkol"),
             onTap: () {
               Navigator.pop(context);
-
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -244,13 +307,21 @@ void _openAddMenu(BuildContext context, Store store, DateTime date) {
             title: const Text("Finance"),
             onTap: () {
               Navigator.pop(context);
-
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => AddFinanceScreen(store: store, date: date),
                 ),
               );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.water_drop),
+            title: const Text("Začátek menstruace"),
+            onTap: () {
+              store.addPeriodDay(date);
+              Navigator.pop(context);
             },
           ),
         ],

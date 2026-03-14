@@ -9,6 +9,7 @@ import '../screens/theme_screen.dart';
 import '../theme/app_theme.dart';
 import '../screens/category_settings_screen.dart';
 import '../screens/finance_overview_screen.dart';
+import '../screens/tracking_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Store store;
@@ -219,6 +220,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (_) => FinanceOverviewScreen(store: widget.store),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.track_changes),
+              title: const Text("Tracking"),
+              onTap: () {
+                Navigator.pop(context);
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => TrackingScreen(store: widget.store),
                   ),
                 );
               },
