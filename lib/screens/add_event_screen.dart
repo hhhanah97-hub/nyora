@@ -44,10 +44,15 @@ class _AddEventScreenState extends State<AddEventScreen> {
       selectedDate = e.date;
       selectedTimeMinutes = e.timeMinutes;
       selectedCategory = e.category;
+      selectedTime = TimeOfDay(
+        hour: selectedTimeMinutes ~/ 60,
+        minute: selectedTimeMinutes % 60,
+      );
     } else {
       selectedDate = widget.initialDate;
       selectedTimeMinutes = 12 * 60;
       selectedCategory = widget.store.categories.first.name;
+      selectedTime = const TimeOfDay(hour: 12, minute: 0);
     }
   }
 
@@ -81,6 +86,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
     if (time != null) {
       setState(() {
         selectedTime = time;
+        selectedTimeMinutes = (time.hour * 60) + time.minute;
       });
     }
   }
