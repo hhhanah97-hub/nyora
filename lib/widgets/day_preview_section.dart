@@ -5,7 +5,6 @@ import '../models/event.dart';
 import '../screens/add_finance_screen.dart';
 import '../screens/add_task_screen.dart';
 import '../models/task.dart';
-import '../models/tracker.dart';
 
 class DayPreviewSection extends StatelessWidget {
   final Store store;
@@ -28,7 +27,7 @@ class DayPreviewSection extends StatelessWidget {
     final eventsForDay = store.eventsForDay(selectedDay);
     final finances = store.financesForDay(selectedDay);
     final tasks = store.tasksForDay(selectedDay);
-    final habits = store.habitsForDay(selectedDay);
+    final dailyTrackers = store.trackersForDay(selectedDay);
 
     double expensesToday = 0;
     for (var f in finances) {
@@ -41,7 +40,6 @@ class DayPreviewSection extends StatelessWidget {
       margin: const EdgeInsets.all(16),
       child: Padding(
         padding: const EdgeInsets.all(16),
-
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -56,7 +54,6 @@ class DayPreviewSection extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-
                 IconButton(
                   icon: const Icon(Icons.add),
                   onPressed: () {
@@ -82,7 +79,6 @@ class DayPreviewSection extends StatelessWidget {
                                 );
                               },
                             ),
-
                             ListTile(
                               leading: const Icon(Icons.task),
                               title: const Text("Úkol"),
@@ -99,7 +95,6 @@ class DayPreviewSection extends StatelessWidget {
                                 );
                               },
                             ),
-
                             ListTile(
                               leading: const Icon(Icons.attach_money),
                               title: const Text("Finance"),
@@ -148,9 +143,7 @@ class DayPreviewSection extends StatelessWidget {
                 Text("Události", style: TextStyle(fontWeight: FontWeight.bold)),
               ],
             ),
-
             const SizedBox(height: 6),
-
             if (eventsForDay.isEmpty)
               const Text("Žádné události")
             else
@@ -167,9 +160,7 @@ class DayPreviewSection extends StatelessWidget {
                             formatTimeFromMinutes(e.timeMinutes),
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-
                           const SizedBox(width: 10),
-
                           Container(
                             width: 10,
                             height: 10,
@@ -178,9 +169,7 @@ class DayPreviewSection extends StatelessWidget {
                               shape: BoxShape.circle,
                             ),
                           ),
-
                           const SizedBox(width: 8),
-
                           Expanded(child: Text(e.text)),
                         ],
                       ),
@@ -201,9 +190,7 @@ class DayPreviewSection extends StatelessWidget {
                 Text("Úkoly", style: TextStyle(fontWeight: FontWeight.bold)),
               ],
             ),
-
             const SizedBox(height: 6),
-
             if (tasks.isEmpty)
               const Text("Žádné úkoly")
             else
@@ -211,7 +198,6 @@ class DayPreviewSection extends StatelessWidget {
                 children: tasks.map((task) {
                   final hour = task.timeMinutes ~/ 60;
                   final minute = task.timeMinutes % 60;
-
                   final timeText = task.timeMinutes > 0
                       ? "${fmt2(hour)}:${fmt2(minute)} "
                       : "";
@@ -244,9 +230,7 @@ class DayPreviewSection extends StatelessWidget {
                 Text("Finance", style: TextStyle(fontWeight: FontWeight.bold)),
               ],
             ),
-
             const SizedBox(height: 6),
-
             Text("Výdaje dnes: ${expensesToday.toStringAsFixed(0)} Kč"),
             Text("Zůstatek: ${store.getBalance().toStringAsFixed(0)} Kč"),
 
@@ -254,7 +238,7 @@ class DayPreviewSection extends StatelessWidget {
             const Divider(),
             const SizedBox(height: 10),
 
-            /// TRACKER
+            /// TRACKER (ZVYKY)
             Row(
               children: const [
                 Icon(Icons.track_changes, size: 18),
@@ -262,31 +246,23 @@ class DayPreviewSection extends StatelessWidget {
                 Text("Tracker", style: TextStyle(fontWeight: FontWeight.bold)),
               ],
             ),
-
             const SizedBox(height: 6),
-
-            if (habits.isEmpty)
-              const Text("Žádné trackery")
+            if (dailyTrackers.isEmpty)
+              const Text("Žádné zvyky pro tento den")
             else
               Column(
-                children: habits.map((habit) {
-                  final done = store.trackers.any(
-                    (x) =>
-                        x.name == habit.name &&
-                        x.date.year == selectedDay.year &&
-                        x.date.month == selectedDay.month &&
-                        x.date.day == selectedDay.day,
-                  );
-
-                  final streak = store.getHabitStreak(habit.name);
-
+                children: dailyTrackers.map((tracker) {
+                  final streak = store.getHabitStreak(tracker.name);
                   return CheckboxListTile(
-                    value: done,
-                    title: Text(habit.name),
-                    secondary: Text("🔥 $streak"),
+                    value: tracker.done,
+                    title: Text(tracker.name),
+                    secondary: Text(
+                      "🔥 $streak",
+                      style: const TextStyle(color: Colors.orange),
+                    ),
                     onChanged: (value) {
                       store.toggleHabit(
-                        habit.name,
+                        tracker.name,
                         selectedDay,
                         value ?? false,
                       );
@@ -295,30 +271,113 @@ class DayPreviewSection extends StatelessWidget {
                 }).toList(),
               ),
 
-            /// cycle tracker informace
+            /// INFORMACE O CYKLU (Skryje se, pokud je prázdno)
             Builder(
               builder: (_) {
-                final ovulation = store.getOvulationDay();
-                final nextPeriod = store.getNextPeriod();
+                final isActualPeriod = store.isPeriodDay(selectedDay);
+                final isFertile = store.isFertileDay(selectedDay);
 
-                final widgets = <Widget>[];
-
-                if (store.isFertileDay(selectedDay)) {
-                  widgets.add(const Text("🌸 Plodné dny"));
+                // Zjištění očekávané menstruace
+                bool isExpectedPeriod = false;
+                if (!isActualPeriod) {
+                  final expectedStart = store.getExpectedNextPeriodStart(
+                    selectedDay,
+                  );
+                  if (expectedStart != null) {
+                    final diff = selectedDay.difference(expectedStart).inDays;
+                    isExpectedPeriod = diff >= 0 && diff <= 4;
+                  }
                 }
 
-                if (ovulation != null &&
-                    ovulation.year == selectedDay.year &&
-                    ovulation.month == selectedDay.month &&
-                    ovulation.day == selectedDay.day) {
-                  widgets.add(const Text("🥚 Ovulace"));
+                // Pokud v tento den nic z cyklu není, nevracíme vůbec nic
+                if (!isActualPeriod && !isFertile && !isExpectedPeriod) {
+                  return const SizedBox.shrink();
                 }
 
-                if (nextPeriod != null &&
-                    nextPeriod.year == selectedDay.year &&
-                    nextPeriod.month == selectedDay.month &&
-                    nextPeriod.day == selectedDay.day) {
-                  widgets.add(const Text("🩸 Očekávaná menstruace"));
+                // Jinak vygenerujeme sekci s ikonami
+                final widgets = <Widget>[
+                  const SizedBox(height: 20),
+                  const Divider(),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: const [
+                      Icon(Icons.sync, size: 18),
+                      SizedBox(width: 6),
+                      Text(
+                        "Cyklus",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                ];
+
+                if (isActualPeriod) {
+                  widgets.add(
+                    const Row(
+                      children: [
+                        Icon(Icons.water_drop, color: Colors.black87),
+                        SizedBox(width: 10),
+                        Text(
+                          "Menstruace",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  );
+                } else if (isExpectedPeriod) {
+                  widgets.add(
+                    const Row(
+                      children: [
+                        Icon(Icons.water_drop_outlined, color: Colors.black54),
+                        SizedBox(width: 10),
+                        Text(
+                          "Očekávaná menstruace",
+                          style: TextStyle(color: Colors.black54),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                if (isFertile) {
+                  final ovulation = store.getOvulationDay(selectedDay);
+                  bool isOvDay =
+                      ovulation != null &&
+                      ovulation.year == selectedDay.year &&
+                      ovulation.month == selectedDay.month &&
+                      ovulation.day == selectedDay.day;
+
+                  if (isOvDay) {
+                    widgets.add(
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Row(
+                          children: const [
+                            Icon(Icons.egg_alt, color: Colors.black87),
+                            SizedBox(width: 10),
+                            Text(
+                              "Den ovulace",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  } else {
+                    widgets.add(
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Row(
+                          children: const [
+                            Icon(Icons.favorite_border, color: Colors.black54),
+                            SizedBox(width: 10),
+                            Text("Plodné okno"),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
                 }
 
                 return Column(
@@ -334,6 +393,7 @@ class DayPreviewSection extends StatelessWidget {
   }
 
   void _eventMenu(BuildContext context, Event e) {
+    // ... tvůj stávající kód
     showModalBottomSheet(
       context: context,
       builder: (context) {
@@ -375,6 +435,7 @@ class DayPreviewSection extends StatelessWidget {
   }
 
   void _taskMenu(BuildContext context, Task task) {
+    // ... tvůj stávající kód
     showModalBottomSheet(
       context: context,
       builder: (context) {

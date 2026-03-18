@@ -1,60 +1,48 @@
 import 'package:flutter/material.dart';
 import 'store/store.dart';
 import 'screens/home_screen.dart';
+import 'theme/theme_controller.dart'; // Předpokládám, že máš soubor v této složce
 import 'theme/app_theme.dart';
+
+// Globální instance, ke kterým budeme přistupovat
+final themeController = ThemeController();
+final globalStore = Store();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final store = Store();
-  await store.load();
-  await store.loadCategories();
+  // Načtení uložených dat a tématu při startu
+  await globalStore.load();
 
-  runApp(MyApp(store: store));
+  runApp(const MyApp());
 }
 
-class MyApp extends StatefulWidget {
-  final Store store;
-
-  const MyApp({super.key, required this.store});
-
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  AppTheme theme = AppTheme(
-    accent: Colors.blue,
-    background: Colors.grey.shade100,
-    card: Colors.white,
-  );
-
-  void toggleTheme(Color color) {
-    setState(() {
-      theme.accent = color;
-    });
-  }
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Nyora',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: theme.accent),
-        scaffoldBackgroundColor: theme.background,
-        cardColor: theme.card,
-      ),
-      home: HomeScreen(
-        store: widget.store,
-        paletteCtrl: null,
-        theme: theme,
-        onThemeChanged: (newTheme) {
-          setState(() {
-            theme = newTheme;
-          });
-        },
-      ),
+    // ListenableBuilder sleduje themeController.
+    // Když změníš paletu, automaticky znovu sestaví celou appku s novými barvami.
+    return ListenableBuilder(
+      listenable: themeController,
+      builder: (context, child) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Nyora',
+          // Tady propojujeme Flutter téma s naším vybraným tématem
+          theme: themeController.themeData,
+          home: HomeScreen(
+            store: globalStore,
+            paletteCtrl: themeController,
+            theme: themeController
+                .currentTheme, // Předáváme aktuální objekt AppTheme
+            onThemeChanged: (newTheme) {
+              themeController.setTheme(newTheme);
+            },
+          ),
+        );
+      },
     );
   }
 }

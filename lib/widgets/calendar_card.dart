@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:dotted_border/dotted_border.dart';
 import '../store/store.dart';
 import '../theme/app_theme.dart';
 import '../screens/add_event_screen.dart';
 import '../screens/add_task_screen.dart';
 import '../screens/add_finance_screen.dart';
+import '../theme/app_theme.dart';
+import '../theme/theme_controller.dart';
 
 const List<String> monthName = [
   "Leden",
@@ -57,6 +60,7 @@ class CalendarCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
+            /// HEADER
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -80,6 +84,7 @@ class CalendarCard extends StatelessWidget {
 
             const SizedBox(height: 8),
 
+            /// WEEKDAYS
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -95,6 +100,7 @@ class CalendarCard extends StatelessWidget {
 
             const SizedBox(height: 2),
 
+            /// CALENDAR GRID
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -129,22 +135,110 @@ class CalendarCard extends StatelessWidget {
 
                 final events = store.eventsForDay(date);
 
-                final ovulation = store.getOvulationDay();
-                final nextPeriod = store.getNextPeriod();
-
+                // --- VÝPOČTY CYKLU Z HISTORIE ---
                 final isPeriod = store.isPeriodDay(date);
+                final isOvulation = store.isFertileDay(date);
 
-                final isOvulation =
-                    ovulation != null &&
-                    ovulation.year == date.year &&
-                    ovulation.month == date.month &&
-                    ovulation.day == date.day;
+                // Určení očekávané menstruace
+                bool isNextPeriod = false;
+                if (!isPeriod) {
+                  final expectedStart = store.getExpectedNextPeriodStart(date);
+                  if (expectedStart != null) {
+                    final diff = date.difference(expectedStart).inDays;
+                    isNextPeriod = diff >= 0 && diff <= 4;
+                  }
+                }
 
-                final isNextPeriod =
-                    nextPeriod != null &&
-                    nextPeriod.year == date.year &&
-                    nextPeriod.month == date.month &&
-                    nextPeriod.day == date.day;
+                // --- ZÁKLADNÍ POLÍČKO DNE ---
+                Widget dayContent = Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: isSelected
+                      ? BoxDecoration(
+                          color: theme.accent,
+                          borderRadius: BorderRadius.circular(8),
+                        )
+                      : isToday
+                      ? BoxDecoration(
+                          color: Colors.blue.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        )
+                      : null,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "${date.day}",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              color: isSelected
+                                  ? Colors.white
+                                  : theme.textOnCard,
+                            ),
+                          ),
+                          const SizedBox(height: 1),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: events
+                                .take(3)
+                                .map(
+                                  (e) => Container(
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 1,
+                                    ),
+                                    width: 3,
+                                    height: 3,
+                                    decoration: BoxDecoration(
+                                      color: store.getCategoryColor(e.category),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+
+                // --- OBALENÍ DO RÁMEČKŮ PODLE FÁZE CYKLU (s dynamickými barvami) ---
+                Widget borderedDay = dayContent;
+
+                if (isPeriod) {
+                  // Plná čára (Skutečná menstruace) - bere barvu z AppTheme
+                  borderedDay = Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: theme.cyclePeriod, width: 1.5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: dayContent,
+                  );
+                } else if (isNextPeriod) {
+                  // Přerušovaná čára (Očekávaná menstruace) - bere barvu z AppTheme
+                  borderedDay = DottedBorder(
+                    color: theme.cycleExpected,
+                    strokeWidth: 1.5,
+                    dashPattern: const [6, 4],
+                    borderType: BorderType.RRect,
+                    radius: const Radius.circular(8),
+                    padding: EdgeInsets.zero,
+                    child: dayContent,
+                  );
+                } else if (isOvulation) {
+                  // Tečkovaná čára (Plodné okno) - bere barvu z AppTheme
+                  borderedDay = DottedBorder(
+                    color: theme.cycleOvulation,
+                    strokeWidth: 1.5,
+                    dashPattern: const [2, 3],
+                    borderType: BorderType.RRect,
+                    radius: const Radius.circular(8),
+                    padding: EdgeInsets.zero,
+                    child: dayContent,
+                  );
+                }
 
                 return GestureDetector(
                   onTap: () => onDayTap(date),
@@ -152,110 +246,7 @@ class CalendarCard extends StatelessWidget {
                     onDayTap(date);
                     _openAddMenu(context, store, date);
                   },
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: isSelected
-                        ? BoxDecoration(
-                            color: theme.accent,
-                            borderRadius: BorderRadius.circular(8),
-                          )
-                        : isToday
-                        ? BoxDecoration(
-                            color: Colors.blue.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          )
-                        : null,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Text(
-                              "${date.day}",
-                              style: TextStyle(
-                                fontWeight: FontWeight.w500,
-                                color: isSelected ? Colors.white : null,
-                              ),
-                            ),
-
-                            if (isPeriod)
-                              Positioned(
-                                bottom: -2,
-                                left: 0,
-                                right: 0,
-                                child: Container(height: 2, color: Colors.red),
-                              ),
-
-                            if (isOvulation)
-                              Positioned(
-                                bottom: -2,
-                                left: 0,
-                                right: 0,
-                                child: Row(
-                                  children: List.generate(
-                                    6,
-                                    (_) => Expanded(
-                                      child: Container(
-                                        height: 2,
-                                        margin: const EdgeInsets.symmetric(
-                                          horizontal: 1,
-                                        ),
-                                        color: Colors.pink,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                            if (isNextPeriod)
-                              Positioned(
-                                bottom: -2,
-                                left: 0,
-                                right: 0,
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: List.generate(
-                                    6,
-                                    (_) => Container(
-                                      width: 3,
-                                      height: 3,
-                                      decoration: const BoxDecoration(
-                                        color: Colors.red,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 4),
-
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: events
-                              .take(3)
-                              .map(
-                                (e) => Container(
-                                  margin: const EdgeInsets.symmetric(
-                                    horizontal: 1,
-                                  ),
-                                  width: 3,
-                                  height: 3,
-                                  decoration: BoxDecoration(
-                                    color: store.getCategoryColor(e.category),
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                      ],
-                    ),
-                  ),
+                  child: borderedDay,
                 );
               },
             ),
@@ -266,6 +257,7 @@ class CalendarCard extends StatelessWidget {
   }
 }
 
+// Spodní menu po long-pressu
 void _openAddMenu(BuildContext context, Store store, DateTime date) {
   showModalBottomSheet(
     context: context,
@@ -287,7 +279,6 @@ void _openAddMenu(BuildContext context, Store store, DateTime date) {
               );
             },
           ),
-
           ListTile(
             leading: const Icon(Icons.check_circle_outline),
             title: const Text("Úkol"),
@@ -301,7 +292,6 @@ void _openAddMenu(BuildContext context, Store store, DateTime date) {
               );
             },
           ),
-
           ListTile(
             leading: const Icon(Icons.attach_money),
             title: const Text("Finance"),
@@ -315,9 +305,8 @@ void _openAddMenu(BuildContext context, Store store, DateTime date) {
               );
             },
           ),
-
           ListTile(
-            leading: const Icon(Icons.water_drop),
+            leading: const Icon(Icons.water_drop, color: Colors.red),
             title: const Text("Začátek menstruace"),
             onTap: () {
               store.addPeriodDay(date);
